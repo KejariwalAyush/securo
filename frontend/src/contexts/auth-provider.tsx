@@ -4,6 +4,14 @@ import { auth } from '@/lib/api'
 import type { User } from '@/types'
 
 import { AuthContext, type LoginResult } from '@/contexts/auth-context'
+import {
+  firebaseEnabled,
+  firebaseLoginWithEmail,
+  firebaseRegisterWithEmail,
+  firebaseLoginWithGoogle,
+  firebaseLogout,
+  onFirebaseAuthChange,
+} from '@/lib/firebase'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -41,7 +49,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('storage', handleStorage)
   }, [])
 
+  // Firebase token refresh: keep localStorage in sync when Firebase rotates the ID token
+  useEffect(() => {
+    if (!firebaseEnabled) return
+    const unsubscribe = onFirebaseAuthChange(async (fbUser) => {
+      if (fbUser) {
+        const newToken = await fbUser.getIdToken()
+        localStorage.setItem('token', newToken)
+        setToken(newToken)
+      }
+    })
+    return unsubscribe
+  }, [])
+
   const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
+    if (firebaseEnabled) {
+      const idToken = await firebaseLoginWithEmail(email, password)
+      localStorage.setItem('token', idToken)
+      setToken(idToken)
+      const me = await auth.me()
+      setUser(me)
+      return { requires_2fa: false }
+    }
+
     const data = await auth.login(email, password)
 
     if (data.requires_2fa) {
@@ -70,16 +100,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     auth.me().then(setUser).catch(() => {})
   }, [])
 
+  const loginWithGoogle = useCallback(async () => {
+    const idToken = await firebaseLoginWithGoogle()
+    localStorage.setItem('token', idToken)
+    setToken(idToken)
+    const me = await auth.me()
+    setUser(me)
+  }, [])
+
   const updateUser = useCallback((updatedUser: User) => {
     setUser(updatedUser)
   }, [])
 
   const register = useCallback(async (email: string, password: string, preferences?: Record<string, string>) => {
+    if (firebaseEnabled) {
+      const idToken = await firebaseRegisterWithEmail(email, password)
+      localStorage.setItem('token', idToken)
+      setToken(idToken)
+      const me = await auth.me()
+      setUser(me)
+      return
+    }
     await auth.register(email, password, preferences)
     await login(email, password)
   }, [login])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    if (firebaseEnabled) {
+      await firebaseLogout().catch(() => {})
+    }
     localStorage.removeItem('token')
     setToken(null)
     setUser(null)
@@ -87,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryClient])
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, verify2fa, loginWithToken, register, updateUser, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, verify2fa, loginWithToken, loginWithGoogle, register, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   )

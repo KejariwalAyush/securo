@@ -18,6 +18,7 @@ export type AgentStreamEvent =
 export interface SendMessageOptions {
   agentId: string
   content: string
+  images?: string[]
   conversationId?: string | null
   channel?: string
   // Snapshot of the page the user was on when sending. Forwarded as a
@@ -45,6 +46,7 @@ export async function streamChat(opts: SendMessageOptions): Promise<void> {
     headers,
     body: JSON.stringify({
       content: opts.content,
+      images: opts.images && opts.images.length > 0 ? opts.images : null,
       conversation_id: opts.conversationId ?? null,
       channel: opts.channel ?? 'web',
       page_context: opts.pageContext ?? null,

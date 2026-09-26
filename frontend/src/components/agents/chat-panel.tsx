@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ShellLogo } from '@/components/shell-logo'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Loader2, Send, Sparkles, AlertCircle } from 'lucide-react'
+import { Loader2, Send, Sparkles, AlertCircle, Paperclip, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { agents } from '@/lib/api'
 import type { Agent, AgentMessage } from '@/lib/api'
@@ -31,6 +31,7 @@ interface DraftMessage {
   id: string
   role: 'user' | 'assistant'
   text: string
+  images?: string[]
   tools: { name: string; args: Record<string, unknown>; result?: { ok?: boolean; data?: unknown; text?: string | null } }[]
   error?: string
   pending?: boolean
@@ -46,8 +47,10 @@ export function ChatPanel({ agent, conversationId, onConversationCreated, focusS
   // Last error from a chat round, kept after streaming ends so the user
   // can actually see what went wrong. Cleared when they send a new message.
   const [lastError, setLastError] = useState<string | null>(null)
+  const [attachedImages, setAttachedImages] = useState<string[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   // Whether the user is "pinned" to the bottom of the scroll area. We
   // only auto-scroll while pinned — if the user scrolls up to read,
   // streaming deltas no longer yank them back down.
@@ -113,9 +116,45 @@ export function ChatPanel({ agent, conversationId, onConversationCreated, focusS
     isAtBottomRef.current = distance < 80
   }
 
+  const readAndAddImage = (file: File) => {
+    if (!file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setAttachedImages((prev) => [...prev, reader.result as string])
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+    for (let i = 0; i < files.length; i++) {
+      readAndAddImage(files[i])
+    }
+    e.target.value = ''
+  }
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile()
+        if (file) {
+          e.preventDefault()
+          readAndAddImage(file)
+        }
+      }
+    }
+  }
+
   const send = async () => {
     const trimmed = input.trim()
-    if (!trimmed || streaming) return
+    if ((!trimmed && attachedImages.length === 0) || streaming) return
+    const imagesToSend = [...attachedImages]
+    setAttachedImages([])
     setInput('')
     setLastError(null)
     setStreaming(true)
@@ -132,12 +171,13 @@ export function ChatPanel({ agent, conversationId, onConversationCreated, focusS
     // streaming completes successfully.
     const startedFresh = !conversationId
     const localId = crypto.randomUUID()
-    setPendingUser({ id: 'pending-user-' + localId, role: 'user', text: trimmed, tools: [] })
+    setPendingUser({ id: 'pending-user-' + localId, role: 'user', text: trimmed, images: imagesToSend, tools: [] })
     setDraft({ id: 'draft-' + localId, role: 'assistant', text: '', tools: [], pending: true })
     try {
       await streamChat({
         agentId: agent.id,
-        content: trimmed,
+        content: trimmed || (imagesToSend.length > 0 ? t('agents.chat.imageAnalysisPrompt', 'Please inspect this attached image/document and analyze it.') : ''),
+        images: imagesToSend,
         conversationId,
         pageContext: getPageContext?.() ?? null,
         onEvent: (ev: AgentStreamEvent) => {
@@ -233,8 +273,20 @@ export function ChatPanel({ agent, conversationId, onConversationCreated, focusS
             (m) => m.role === 'user' && (m.content ?? '').trim() === pendingUser.text.trim(),
           ) && (
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-lg px-3 py-2 bg-primary text-primary-foreground">
-              <div className="whitespace-pre-wrap text-sm">{pendingUser.text}</div>
+            <div className="max-w-[80%] rounded-lg px-3 py-2 bg-primary text-primary-foreground space-y-2">
+              {pendingUser.images && pendingUser.images.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {pendingUser.images.map((src, i) => (
+                    <img
+                      key={i}
+                      src={src}
+                      alt="attachment preview"
+                      className="max-h-48 rounded border border-primary-foreground/20 object-contain bg-black/10"
+                    />
+                  ))}
+                </div>
+              )}
+              {pendingUser.text && <div className="whitespace-pre-wrap text-sm">{pendingUser.text}</div>}
             </div>
           </div>
         )}
@@ -297,35 +349,71 @@ export function ChatPanel({ agent, conversationId, onConversationCreated, focusS
           </div>
         )}
       </div>
-      <div className="shrink-0 border-t p-3 flex items-end gap-2 bg-background">
-        <textarea
-          ref={inputRef}
-          value={input}
-          onChange={(e) => {
-            setInput(e.target.value)
-            // Auto-grow: reset then size to content. Capped via maxHeight.
-            const el = e.target
-            el.style.height = 'auto'
-            el.style.height = `${Math.min(el.scrollHeight, 200)}px`
-          }}
-          rows={1}
-          placeholder={t('agents.chat.placeholder', { name: agent.name })}
-          // h-10 matches the default Button height so the input + send
-          // button line up when empty. Auto-grow above lifts it as the
-          // user types more lines.
-          className="flex-1 h-10 max-h-[200px] rounded-md border bg-card px-3 py-2 text-sm resize-none leading-5 overflow-y-auto"
-          onKeyDown={(e) => {
-            // Enter sends; Shift+Enter inserts a newline. IME composition
-            // (e.g. accented chars on Mac, CJK input) must not be hijacked.
-            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault()
-              send()
-            }
-          }}
-        />
-        <Button onClick={send} disabled={streaming || !input.trim()} className="shrink-0">
-          {streaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        </Button>
+      <div className="shrink-0 border-t p-3 bg-background space-y-2">
+        {attachedImages.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {attachedImages.map((src, idx) => (
+              <div key={idx} className="relative group rounded-md border overflow-hidden bg-muted">
+                <img src={src} alt="attachment" className="h-16 w-16 object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setAttachedImages((prev) => prev.filter((_, i) => i !== idx))}
+                  className="absolute top-1 right-1 rounded-full bg-black/70 text-white p-0.5 hover:bg-black transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex items-end gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            title={t('agents.chat.attachImage', 'Attach image or receipt')}
+            className="h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground"
+          >
+            <Paperclip className="h-4 w-4" />
+          </Button>
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value)
+              // Auto-grow: reset then size to content. Capped via maxHeight.
+              const el = e.target
+              el.style.height = 'auto'
+              el.style.height = `${Math.min(el.scrollHeight, 200)}px`
+            }}
+            onPaste={handlePaste}
+            rows={1}
+            placeholder={t('agents.chat.placeholder', { name: agent.name })}
+            className="flex-1 h-10 max-h-[200px] rounded-md border bg-card px-3 py-2 text-sm resize-none leading-5 overflow-y-auto"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault()
+                send()
+              }
+            }}
+          />
+          <Button
+            onClick={send}
+            disabled={streaming || (!input.trim() && attachedImages.length === 0)}
+            className="shrink-0"
+          >
+            {streaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
       </div>
     </div>
   )
@@ -355,10 +443,23 @@ function HistoryView({ agent, history }: { agent: Agent; history: AgentMessage[]
         .filter((m) => m.role !== 'tool') // tool messages render under their assistant call
         .map((m) => {
           if (m.role === 'user') {
+            const userImages = ((m.tool_result as Record<string, unknown> | null)?.images as string[]) || []
             return (
               <div key={m.id} className="flex justify-end">
-                <div className="max-w-[80%] rounded-lg px-3 py-2 bg-primary text-primary-foreground">
-                  <div className="whitespace-pre-wrap text-sm">{m.content}</div>
+                <div className="max-w-[80%] rounded-lg px-3 py-2 bg-primary text-primary-foreground space-y-2">
+                  {userImages.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {userImages.map((src, i) => (
+                        <img
+                          key={i}
+                          src={src}
+                          alt="attached receipt/doc"
+                          className="max-h-48 rounded border border-primary-foreground/20 object-contain bg-black/10"
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {m.content && <div className="whitespace-pre-wrap text-sm">{m.content}</div>}
                 </div>
               </div>
             )

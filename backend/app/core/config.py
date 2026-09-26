@@ -108,6 +108,11 @@ class Settings(BaseSettings):
     oidc_admin_roles: str = ""  # comma-separated provider roles/groups that grant Securo admin
     oidc_workspace_role_map: str = ""  # JSON: {"provider-role": "owner|editor|viewer"}
 
+    # Firebase Authentication
+    firebase_auth_enabled: bool = False
+    firebase_project_id: str = ""
+    firebase_credentials_json: str = ""  # path to service account JSON, or raw JSON string
+
     # Celery
     redis_url: str = "redis://localhost:6379/0"
 
@@ -141,7 +146,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_auth_settings(self) -> "Settings":
-        if not self.local_auth_enabled and not self.oidc_login_available:
+        if not self.local_auth_enabled and not self.oidc_login_available and not self.firebase_auth_enabled:
             missing = []
             if not self.oidc_enabled:
                 missing.append("OIDC_ENABLED=true")
@@ -150,7 +155,7 @@ class Settings(BaseSettings):
             if not self.oidc_discovery_url:
                 missing.append("OIDC_DISCOVERY_URL")
             raise ValueError(
-                "LOCAL_AUTH_ENABLED=false requires a complete OIDC configuration; "
+                "LOCAL_AUTH_ENABLED=false requires a complete OIDC or Firebase configuration; "
                 f"missing: {', '.join(missing)}"
             )
         return self

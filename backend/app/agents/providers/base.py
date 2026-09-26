@@ -59,6 +59,7 @@ class ToolCall:
 class ChatMessage:
     role: Role
     content: Optional[str] = None
+    images: list[str] = field(default_factory=list)
     tool_calls: list[ToolCall] = field(default_factory=list)
     # For role="tool":
     tool_call_id: Optional[str] = None

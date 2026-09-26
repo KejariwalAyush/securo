@@ -24,6 +24,7 @@ interface Props {
 }
 
 const KIND_LABELS: Record<LlmConnectionKind, { label: string; needsBaseUrl: boolean; needsKey: boolean; modelHint: string; urlHint: string; defaultModel?: string }> = {
+  gemini: { label: 'Google Gemini', needsBaseUrl: false, needsKey: true, modelHint: 'gemini-2.5-flash', urlHint: '', defaultModel: 'gemini-2.5-flash' },
   ollama: { label: 'Ollama', needsBaseUrl: false, needsKey: false, modelHint: 'llama3.1:8b', urlHint: 'http://host.docker.internal:11434' },
   // OpenAI + Anthropic ship a sensible default model so non-tech users
   // don't need to know which id to type. Self-hosted kinds (Ollama,

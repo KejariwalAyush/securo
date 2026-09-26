@@ -82,6 +82,8 @@ def _provider_for(agent: Agent):
         api_key = os.getenv("AGENTS_ANTHROPIC_API_KEY", "")
     elif name == "ollama":
         base_url = os.getenv("AGENTS_OLLAMA_BASE_URL", "http://ollama:11434")
+    elif name == "gemini":
+        api_key = os.getenv("AGENTS_GEMINI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
     elif name == "openai_compatible":
         api_key = os.getenv("AGENTS_OPENAI_COMPAT_API_KEY", "")
         base_url = os.getenv("AGENTS_OPENAI_COMPAT_BASE_URL")
@@ -91,6 +93,8 @@ def _provider_for(agent: Agent):
 def _model_for(agent: Agent) -> str:
     if agent.model:
         return agent.model
+    if (agent.provider or os.getenv("AGENTS_DEFAULT_PROVIDER")) == "gemini":
+        return os.getenv("AGENTS_DEFAULT_MODEL", "gemini-2.5-flash")
     return os.getenv("AGENTS_DEFAULT_MODEL", "")
 
 
@@ -328,12 +332,14 @@ class AgentExecutor:
         workspace_id: Optional[uuid.UUID] = None,
         conversation_id: uuid.UUID,
         user_message: str,
+        images: Optional[list[str]] = None,
         channel: str = "web",
         page_context: Optional[dict[str, Any]] = None,
     ) -> AsyncIterator[ExecutorEvent]:
         # 1. Persist the user message first so it survives crashes.
+        user_tool_meta = {"images": images} if images else None
         await conversation_service.append_message(
-            session, conversation_id=conversation_id, role="user", content=user_message
+            session, conversation_id=conversation_id, role="user", content=user_message, tool_result=user_tool_meta
         )
         await conversation_service.update_title_if_empty(session, conversation_id, user_message)
 
@@ -402,9 +408,11 @@ class AgentExecutor:
                 # Encode tool result as content for the LLM.
                 tr = m.tool_result or {}
                 content = tr.get("text") or _safe_json(tr.get("data"))
+            m_imgs = (m.tool_result or {}).get("images") or [] if m.role == "user" else []
             messages.append(ChatMessage(
                 role=cast(Role, m.role),
                 content=content,
+                images=m_imgs,
                 tool_calls=tcs,
                 tool_call_id=tool_call_id,
             ))

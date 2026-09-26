@@ -127,7 +127,10 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
-      window.location.href = '/login'
+      const publicPaths = ['/login', '/register', '/setup', '/auth/oidc/callback']
+      if (!publicPaths.some((p) => window.location.pathname.startsWith(p))) {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
@@ -296,6 +299,10 @@ export const auth = {
       credential,
     })
     return data
+  },
+  firebaseVerify: async () => {
+    const res = await api.post('/auth/firebase/verify')
+    return res.data
   },
   oidcConfig: async (): Promise<{ enabled: boolean; provider_name: string; local_auth_enabled: boolean }> => {
     // The login card blocks on this call while it decides which sign-in
@@ -1729,7 +1736,7 @@ export interface Agent {
   updated_at: string
 }
 
-export type LlmConnectionKind = 'ollama' | 'openai' | 'anthropic' | 'openai_compatible'
+export type LlmConnectionKind = 'gemini' | 'ollama' | 'openai' | 'anthropic' | 'openai_compatible'
 
 export interface LlmConnection {
   id: string

@@ -45,6 +45,7 @@ from app.api.timezones import router as timezones_router
 from app.api.transactions import router as transactions_router
 from app.api.two_factor import router as two_factor_router
 from app.api.user_lookup import router as user_lookup_router
+from app.api.users import router as users_router
 from app.api.workspaces import router as workspaces_router
 from app.api.admin import router as admin_router, check_registration_enabled
 from app.core.auth import fastapi_users
@@ -143,6 +144,9 @@ app.include_router(
     tags=["auth"],
 )
 app.include_router(oidc_auth_router)
+if settings.firebase_auth_enabled:
+    from app.api.firebase_auth import router as firebase_auth_router
+    app.include_router(firebase_auth_router)
 app.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
     prefix="/api/auth",
@@ -159,15 +163,12 @@ app.include_router(
     tags=["auth"],
     dependencies=[Depends(require_local_auth_enabled), Depends(password_reset_rate_limit)],
 )
-# user_lookup must precede the fastapi-users router below so the
+# user_lookup must precede the users router below so the
 # `/api/users/lookup` path isn't captured by the catch-all `/{id}`
-# route fastapi-users mounts.
+# route users router mounts.
 app.include_router(user_lookup_router)
-app.include_router(
-    fastapi_users.get_users_router(UserRead, UserUpdate),
-    prefix="/api/users",
-    tags=["users"],
-)
+app.include_router(users_router)
+
 
 # Domain routes
 app.include_router(categories_router)

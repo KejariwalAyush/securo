@@ -52,7 +52,14 @@ def _serialize_messages(messages: list[ChatMessage]) -> list[dict]:
     out: list[dict] = []
     for m in messages:
         msg: dict = {"role": m.role}
-        if m.content is not None:
+        if m.images:
+            parts: list[dict] = []
+            if m.content:
+                parts.append({"type": "text", "text": m.content})
+            for img in m.images:
+                parts.append({"type": "image_url", "image_url": {"url": img}})
+            msg["content"] = parts
+        elif m.content is not None:
             msg["content"] = m.content
         if m.tool_calls:
             msg["tool_calls"] = [

@@ -60,6 +60,9 @@ class AgentSettings(BaseSettings):
     embedding_openai_base_url: str = "https://api.openai.com/v1"
     embedding_openai_api_key: str = ""
 
+    # Gemini settings
+    gemini_api_key: str = ""
+
     # Where uploaded knowledge files live on disk (per-instance).
     knowledge_storage_path: str = "/app/data/agent_knowledge"
     knowledge_max_file_size_mb: int = 25

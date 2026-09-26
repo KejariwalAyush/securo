@@ -808,7 +808,9 @@
     "deletePasskey": "Delete passkey",
     "passkeyCreated": "Created",
     "passkeyLastUsed": "Last used",
-    "passkeyNeverUsed": "Never"
+    "passkeyNeverUsed": "Never",
+    "signInWithGoogle": "Sign in with Google",
+    "orContinueWith": "Or continue with"
   },
   "dashboard": {
     "title": "Dashboard",

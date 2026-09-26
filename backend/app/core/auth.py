@@ -99,5 +99,27 @@ auth_backend = AuthenticationBackend(
 
 fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend])
 
-current_active_user = fastapi_users.current_user(active=True)
-current_superuser = fastapi_users.current_user(active=True, superuser=True)
+_legacy_current_user = fastapi_users.current_user(active=True)
+_legacy_current_superuser = fastapi_users.current_user(active=True, superuser=True)
+
+
+def _resolve_current_user():
+    """Return the right dependency based on Firebase config."""
+    if get_settings().firebase_auth_enabled:
+        from app.core.firebase_auth import get_firebase_user
+        return get_firebase_user
+    return _legacy_current_user
+
+
+def _resolve_current_superuser():
+    """Return the right superuser dependency based on Firebase config."""
+    if get_settings().firebase_auth_enabled:
+        from app.core.firebase_auth import get_firebase_superuser
+        return get_firebase_superuser
+    return _legacy_current_superuser
+
+
+# Evaluated at import time — config must be set before the app starts.
+current_active_user = _resolve_current_user()
+current_superuser = _resolve_current_superuser()
+

@@ -46,6 +46,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     is_2fa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     oidc_issuer: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     oidc_subject: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    firebase_uid: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, unique=True, index=True)
 
     categories: Mapped[list["Category"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     category_groups: Mapped[list["CategoryGroup"]] = relationship(back_populates="user", cascade="all, delete-orphan")

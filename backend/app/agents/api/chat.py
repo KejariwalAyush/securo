@@ -79,6 +79,7 @@ async def chat(
                 workspace_id=ctx.workspace.id,
                 conversation_id=conv.id,
                 user_message=body.content,
+                images=body.images,
                 channel=body.channel,
                 page_context=body.page_context,
             ):

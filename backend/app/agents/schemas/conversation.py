@@ -35,6 +35,7 @@ class ConversationRead(BaseModel):
 
 class SendMessageRequest(BaseModel):
     content: str
+    images: Optional[list[str]] = None
     conversation_id: Optional[uuid.UUID] = None
     channel: str = "web"
     # Where the user is in the app when this message was sent. The

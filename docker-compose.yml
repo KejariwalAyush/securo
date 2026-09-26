@@ -39,6 +39,10 @@ x-backend-env: &backend-env
   OIDC_ADMIN_ROLES: ${OIDC_ADMIN_ROLES:-}
   OIDC_WORKSPACE_ROLE_MAP: ${OIDC_WORKSPACE_ROLE_MAP:-}
   LOCAL_AUTH_ENABLED: ${LOCAL_AUTH_ENABLED:-true}
+  # Firebase Authentication
+  FIREBASE_AUTH_ENABLED: ${FIREBASE_AUTH_ENABLED:-false}
+  FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+  FIREBASE_CREDENTIALS_JSON: ${FIREBASE_CREDENTIALS_JSON:-}
   REDIS_URL: redis://redis:6379/0
   OPENEXCHANGERATES_APP_ID: ${OPENEXCHANGERATES_APP_ID:-}
   FX_SYNC_MODE: ${FX_SYNC_MODE:-on_demand}
@@ -64,6 +68,7 @@ x-backend-env: &backend-env
   AGENTS_OLLAMA_BASE_URL: ${AGENTS_OLLAMA_BASE_URL:-http://ollama:11434}
   AGENTS_OPENAI_API_KEY: ${AGENTS_OPENAI_API_KEY:-}
   AGENTS_ANTHROPIC_API_KEY: ${AGENTS_ANTHROPIC_API_KEY:-}
+  AGENTS_GEMINI_API_KEY: ${AGENTS_GEMINI_API_KEY:-}
   AGENTS_OPENAI_COMPAT_BASE_URL: ${AGENTS_OPENAI_COMPAT_BASE_URL:-}
   AGENTS_OPENAI_COMPAT_API_KEY: ${AGENTS_OPENAI_COMPAT_API_KEY:-}
   # Knowledge-base embeddings. `native` (default) uses fastembed with a
@@ -138,6 +143,13 @@ services:
       # Also drives Vite's allowedHosts, so a proxied domain is not blocked.
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-3000}}
       APP_VERSION_ROOT: /workspace
+      # Firebase frontend config
+      VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:-}
+      VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:-}
+      VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID:-}
+      VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET:-}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID:-}
+      VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:-}
     depends_on:
       - backend
     volumes:
@@ -166,7 +178,6 @@ services:
   # AGENTS_MCP_EXTERNAL_HOST_PORT to e.g. "0.0.0.0:8765" to expose to LAN.
   mcp-server:
     <<: *backend-base
-    profiles: [agents]
     command: uvicorn mcp_server.main:app --host 0.0.0.0 --port 8765
     ports:
       - "${AGENTS_MCP_EXTERNAL_HOST_PORT:-127.0.0.1:8765}:8765"
