@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "securo-gpw",
     "public": "frontend/dist",
     "ignore": [
       "firebase.json",
