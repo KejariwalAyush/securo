@@ -1,0 +1,17 @@
+.git
+.github
+.env
+frontend/
+docs/
+secrets/
+.agents/
+.claude/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+*.egg-info/

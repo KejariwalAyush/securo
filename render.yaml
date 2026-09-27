@@ -2,8 +2,8 @@ services:
   - type: web
     name: securo-backend
     runtime: docker
-    dockerfilePath: backend/Dockerfile
-    dockerContext: backend
+    dockerfilePath: Dockerfile
+    dockerContext: .
     plan: free
     region: singapore
     envVars:
