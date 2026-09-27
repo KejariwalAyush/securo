@@ -122,6 +122,7 @@ cors_origins = [orig.strip() for orig in settings.frontend_url.split(",") if ori
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
+    allow_origin_regex=r"^https://.*\.web\.app$|^https://.*\.firebaseapp\.com$|^http://localhost(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
