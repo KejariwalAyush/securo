@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: securo-backend
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: free
+    region: singapore
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"
+      - key: FRONTEND_URL
+        sync: false
+      - key: LOCAL_AUTH_ENABLED
+        value: "true"
+      - key: FIREBASE_AUTH_ENABLED
+        value: "true"
+      - key: FIREBASE_PROJECT_ID
+        value: studio-3131737339-ef9ce
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: securo-redis
+          property: connectionString
+
+  - type: redis
+    name: securo-redis
+    plan: free
+    ipAllowList: []
