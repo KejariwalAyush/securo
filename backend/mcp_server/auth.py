@@ -42,10 +42,32 @@ def _settings():
 
 
 def verify_request(request: Request) -> CallContext:
+    token = ""
     auth = request.headers.get("authorization") or ""
-    if not auth.lower().startswith("bearer "):
+    if auth.lower().startswith("bearer "):
+        token = auth.split(" ", 1)[1].strip()
+    elif auth.lower().startswith("basic "):
+        import base64
+        try:
+            raw = base64.b64decode(auth.split(" ", 1)[1].strip()).decode("utf-8")
+            parts = raw.split(":", 1)
+            token = parts[1] if (len(parts) > 1 and parts[1]) else parts[0]
+        except Exception:
+            pass
+
+    if not token:
+        # Check query parameters (for direct URLs with auth)
+        token = (
+            request.query_params.get("token")
+            or request.query_params.get("auth")
+            or request.query_params.get("access_token")
+            or request.query_params.get("api_key")
+            or ""
+        )
+
+    if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing bearer token")
-    token = auth.split(" ", 1)[1].strip()
+
     try:
         payload = jwt.decode(
             token,
