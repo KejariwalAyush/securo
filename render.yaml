@@ -21,6 +21,10 @@ services:
         value: "true"
       - key: FIREBASE_PROJECT_ID
         value: studio-3131737339-ef9ce
+      - key: AGENTS_ENABLED
+        value: "true"
+      - key: AGENTS_MCP_JWT_SECRET
+        value: securo-mcp-secret-key-prod-2026
       - key: REDIS_URL
         fromService:
           type: redis

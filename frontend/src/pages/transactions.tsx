@@ -36,8 +36,9 @@ import {
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertTriangle, ArrowLeftRight, ArrowUp, ArrowDown, Check, Clock, HelpCircle, Info, Paperclip, Trash2, Users, X, EyeClosed, ChartNoAxesColumn, SlidersHorizontal, Receipt } from 'lucide-react'
-import type { Transaction, Rule, InstallmentSeriesInput, TransactionApplyScope, TransactionEditPayload, ReconciliationSuggestion } from '@/types'
+import type { Transaction, Rule, InstallmentSeriesInput, TransactionApplyScope, TransactionEditPayload, ReconciliationSuggestion, LedgerScanPreview } from '@/types'
 import { RuleDialog, type RuleDialogInitialData } from '@/components/rule-dialog'
+import { LedgerReviewModal } from '@/components/ledger-review-modal'
 import { PageHeader } from '@/components/page-header'
 import { calculateRangeSelection } from '@/lib/selection-utils'
 import { isManualInstallmentSeriesRow } from '@/lib/installment-series'
@@ -139,6 +140,35 @@ export default function TransactionsPage() {
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') ?? '')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
+  const [ledgerScanModalOpen, setLedgerScanModalOpen] = useState(false)
+  const [ledgerScanPreview, setLedgerScanPreview] = useState<LedgerScanPreview | null>(null)
+  const [ledgerScanImageFile, setLedgerScanImageFile] = useState<File | null>(null)
+  const [isScanningLedger, setIsScanningLedger] = useState(false)
+  const ledgerFileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleScanLedgerClick = () => {
+    ledgerFileInputRef.current?.click()
+  }
+
+  const handleLedgerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsScanningLedger(true)
+    try {
+      const res = await transactions.scanLedger(file)
+      setLedgerScanPreview(res)
+      setLedgerScanImageFile(file)
+      setLedgerScanModalOpen(true)
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || err?.message || 'Failed to scan ledger image')
+    } finally {
+      setIsScanningLedger(false)
+      if (ledgerFileInputRef.current) {
+        ledgerFileInputRef.current.value = ''
+      }
+    }
+  }
+
   const [pendingTransferCategoryUpdate, setPendingTransferCategoryUpdate] =
     useState<PendingTransferCategoryUpdate | null>(null)
   // Manual installment-series scoped delete. Scoped edits are handled by the
@@ -1371,6 +1401,8 @@ export default function TransactionsPage() {
             onAdd={canWrite ? () => { setEditingTx(null); setDialogOpen(true) } : undefined}
             onDuplicate={duplicableTx ? () => handleDuplicateTransaction(duplicableTx) : undefined}
             onTransfer={canWrite ? () => setTransferDialogOpen(true) : undefined}
+            onScanLedger={canWrite ? handleScanLedgerClick : undefined}
+            isScanningLedger={isScanningLedger}
           />
         }
       />
@@ -2177,6 +2209,27 @@ export default function TransactionsPage() {
         onSave={(data) => createRuleMutation.mutate(data as Omit<Rule, 'id' | 'user_id'>)}
         loading={createRuleMutation.isPending}
         initialData={createRuleInitialData}
+      />
+
+      {/* Hidden file input for ledger scan */}
+      <input
+        type="file"
+        ref={ledgerFileInputRef}
+        onChange={handleLedgerFileChange}
+        accept="image/*"
+        className="hidden"
+      />
+
+      {/* Handwritten Ledger Review Modal */}
+      <LedgerReviewModal
+        open={ledgerScanModalOpen}
+        onOpenChange={setLedgerScanModalOpen}
+        preview={ledgerScanPreview}
+        imageFile={ledgerScanImageFile}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['transactions'] })
+          queryClient.invalidateQueries({ queryKey: ['accounts'] })
+        }}
       />
     </div>
   )

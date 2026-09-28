@@ -173,7 +173,11 @@ class Settings(BaseSettings):
     # this, the very same key written into the .env file aborted startup with
     # "Extra inputs are not permitted".
     model_config = SettingsConfigDict(
-        env_file=(".env", Path(__file__).resolve().parents[2] / ".env"),
+        env_file=(
+            ".env",
+            Path(__file__).resolve().parents[2] / ".env",
+            Path(__file__).resolve().parents[3] / ".env",
+        ),
         secrets_dir=CREDENTIALS_DIRECTORY,
         extra="ignore",
     )

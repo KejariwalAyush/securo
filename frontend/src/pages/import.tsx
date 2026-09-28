@@ -9,14 +9,15 @@ import { invalidateFinancialQueries } from '@/lib/invalidate-queries'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import type { ImportPreviewTransaction, ImportReviewTransaction, FailedRow } from '@/types'
-import { Upload, FileText, X, CheckCircle2, AlertCircle, Settings2, Download } from 'lucide-react'
+import type { ImportPreviewTransaction, ImportReviewTransaction, FailedRow, LedgerScanPreview } from '@/types'
+import { Upload, FileText, X, CheckCircle2, AlertCircle, Settings2, Download, FileSpreadsheet, Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { PageHeader } from '@/components/page-header'
 import { AssetImportPanel } from '@/components/asset-import-panel'
 import { ImportSummaryBar } from '@/components/import-summary-bar'
 import { ImportReviewTable } from '@/components/import-review-table'
 import { ImportHistory } from '@/components/import-history'
+import { LedgerReviewModal } from '@/components/ledger-review-modal'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkspace } from '@/contexts/workspace-context'
 
@@ -67,6 +68,31 @@ function TransactionImportPanel() {
   const [currentFile, setCurrentFile] = useState<File | null>(null)
   const [csvHeaders, setCsvHeaders] = useState<string[]>([])
   const [isFailedRowsOpen, setIsFailedRowsOpen] = useState(false)
+
+  const [ledgerScanModalOpen, setLedgerScanModalOpen] = useState(false)
+  const [ledgerScanPreview, setLedgerScanPreview] = useState<LedgerScanPreview | null>(null)
+  const [ledgerScanImageFile, setLedgerScanImageFile] = useState<File | null>(null)
+  const [isScanningLedger, setIsScanningLedger] = useState(false)
+  const ledgerFileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleLedgerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsScanningLedger(true)
+    try {
+      const res = await transactionsApi.scanLedger(file)
+      setLedgerScanPreview(res)
+      setLedgerScanImageFile(file)
+      setLedgerScanModalOpen(true)
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || err?.message || 'Failed to scan ledger image')
+    } finally {
+      setIsScanningLedger(false)
+      if (ledgerFileInputRef.current) {
+        ledgerFileInputRef.current.value = ''
+      }
+    }
+  }
 
   const [searchQuery, setSearchQuery] = useState('')
   const [filterCategoryIds, setFilterCategoryIds] = useState<string[]>([])
@@ -273,6 +299,56 @@ function TransactionImportPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Handwritten Ledger Scanner Card */}
+      {canWrite && (
+        <div className="bg-gradient-to-r from-sky-500/10 via-card to-card rounded-xl border border-sky-500/20 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="h-10 w-10 rounded-lg bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0 mt-0.5">
+              <FileSpreadsheet className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                Scan Handwritten Daily Ledger
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-700 dark:text-sky-300">
+                  AI Vision
+                </span>
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Upload or capture a photo of your handwritten Roznamcha cash book. Gemini parses all transactions with arithmetic balance checks.
+              </p>
+            </div>
+          </div>
+
+          <div className="shrink-0 flex items-center gap-2">
+            <input
+              ref={ledgerFileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleLedgerFileChange}
+            />
+            <Button
+              type="button"
+              onClick={() => ledgerFileInputRef.current?.click()}
+              disabled={isScanningLedger}
+              className="gap-2 bg-sky-600 hover:bg-sky-700 text-white font-medium text-xs h-9"
+            >
+              {isScanningLedger ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Analyzing Ledger...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" />
+                  Scan Ledger Photo
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Upload zone */}
       {canWrite && <div
         className={`bg-card rounded-xl border-2 border-dashed transition-all cursor-pointer ${
@@ -623,6 +699,18 @@ function TransactionImportPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Handwritten Ledger Review Modal */}
+      <LedgerReviewModal
+        open={ledgerScanModalOpen}
+        onOpenChange={setLedgerScanModalOpen}
+        preview={ledgerScanPreview}
+        imageFile={ledgerScanImageFile}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['transactions'] })
+          queryClient.invalidateQueries({ queryKey: ['accounts'] })
+        }}
+      />
     </div>
   )
 }

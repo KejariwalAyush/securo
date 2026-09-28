@@ -58,6 +58,9 @@ import type {
   FailedRow,
   PayeeTaxId,
   TaxIdKindOption,
+  LedgerScanPreview,
+  LedgerBulkSaveItem,
+  LedgerBulkSaveResponse,
   Workspace,
   WorkspaceKind,
   WorkspaceMember,
@@ -701,6 +704,20 @@ export const transactions = {
     }
 
     const { data } = await api.post('/transactions/import', payload)
+    return data
+  },
+  scanLedger: async (file: File): Promise<LedgerScanPreview> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const { data } = await api.post('/transactions/import/scan-ledger', formData)
+    return data
+  },
+  bulkSaveLedger: async (
+    items: LedgerBulkSaveItem[],
+  ): Promise<LedgerBulkSaveResponse> => {
+    const { data } = await api.post('/transactions/import/bulk-save', {
+      transactions: items,
+    })
     return data
   },
   export: async (params?: {

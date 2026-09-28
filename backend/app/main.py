@@ -3,7 +3,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.accounts import router as accounts_router
@@ -19,6 +19,7 @@ from app.api.import_logs import router as import_logs_router
 from app.api.oidc_auth import router as oidc_auth_router
 from app.api.passkeys import router as passkeys_router
 from app.api.import_transactions import router as import_router
+from app.api.ledger_scan import router as ledger_scan_router
 from app.api.info import router as info_router
 from app.api.recurring_transactions import router as recurring_router
 from app.api.reconciliation import router as reconciliation_router
@@ -128,6 +129,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def mcp_cors_middleware(request: Request, call_next):
+    """Permit cross-origin MCP requests from any client/browser (e.g. Gemini, Cursor)."""
+    if request.url.path.startswith("/mcp"):
+        if request.method == "OPTIONS":
+            from starlette.responses import Response
+            return Response(
+                status_code=200,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                    "Access-Control-Allow-Headers": "*",
+                },
+            )
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return response
+    return await call_next(request)
+
+
 # Auth routes — custom login/logout with 2FA support (mounted first to take precedence)
 app.include_router(
     custom_auth_router,
@@ -179,6 +201,7 @@ app.include_router(rules_router)
 app.include_router(reconciliation_router)
 app.include_router(transactions_router)
 app.include_router(import_router)
+app.include_router(ledger_scan_router)
 app.include_router(import_logs_router)
 app.include_router(accounts_router)
 app.include_router(connections_router)
@@ -238,7 +261,15 @@ if os.getenv("AGENTS_ENABLED", "false").strip().lower() in ("1", "true", "yes", 
     except Exception:
         logger.exception("Agents feature flag is on but import failed; routes not mounted")
 
+try:
+    from mcp_server.main import app as mcp_app
+    app.mount("/mcp", mcp_app)
+    logger.info("Mounted MCP server at /mcp")
+except Exception:
+    logger.exception("MCP server import failed; /mcp route not mounted")
+
 
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy"}
+

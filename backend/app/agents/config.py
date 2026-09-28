@@ -71,7 +71,11 @@ class AgentSettings(BaseSettings):
     # backward compatibility plus the anchored backend/.env, so the API and the
     # Celery worker/beat read the same file whatever directory they start from.
     model_config = SettingsConfigDict(
-        env_file=(".env", Path(__file__).resolve().parents[2] / ".env"),
+        env_file=(
+            ".env",
+            Path(__file__).resolve().parents[2] / ".env",
+            Path(__file__).resolve().parents[3] / ".env",
+        ),
         env_prefix="AGENTS_",
         extra="ignore",
     )

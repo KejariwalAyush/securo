@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ArrowLeftRight, CalendarDays, Copy, Download, List, MoreHorizontal } from 'lucide-react'
+import { ArrowLeftRight, CalendarDays, Copy, Download, FileSpreadsheet, List, Loader2, MoreHorizontal } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { MonthStepper } from '@/components/month-stepper'
 import { TransactionsViewSwitcher, type TransactionsViewSwitcherProps } from '@/components/transactions-view-switcher'
@@ -34,6 +34,8 @@ export type TransactionsPageActionsProps = {
   onAdd?: () => void
   onDuplicate?: () => void
   onTransfer?: () => void
+  onScanLedger?: () => void
+  isScanningLedger?: boolean
   testId?: string
 }
 
@@ -54,6 +56,16 @@ function DesktopSecondaryActions(props: TransactionsPageActionsProps) {
       <Button variant="outline" disabled={props.exporting} onClick={props.onExport}>
         <Download size={16} className="mr-1.5" />{props.exportLabel}
       </Button>
+      {props.onScanLedger && (
+        <Button variant="outline" onClick={props.onScanLedger} disabled={props.isScanningLedger} className="border-sky-500/30 hover:border-sky-500/50">
+          {props.isScanningLedger ? (
+            <Loader2 size={16} className="mr-1.5 animate-spin text-sky-500" />
+          ) : (
+            <FileSpreadsheet size={16} className="mr-1.5 text-sky-500" />
+          )}
+          Scan Ledger
+        </Button>
+      )}
       {props.onDuplicate && <Button variant="outline" onClick={props.onDuplicate}><Copy size={16} className="mr-1.5" />{t('transactions.duplicate')}</Button>}
       {props.onTransfer && <Button variant="outline" onClick={props.onTransfer}><ArrowLeftRight size={16} className="mr-1.5" />{t('transactions.transfer')}</Button>}
     </div>
@@ -90,6 +102,11 @@ function MobileSecondaryMenu(props: TransactionsPageActionsProps) {
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled={props.exporting} onClick={props.onExport}><Download size={16} className="mr-2" />{props.exportLabel}</DropdownMenuItem>
+        {props.onScanLedger && (
+          <DropdownMenuItem onClick={props.onScanLedger} disabled={props.isScanningLedger}>
+            <FileSpreadsheet size={16} className="mr-2 text-sky-500" />Scan Ledger
+          </DropdownMenuItem>
+        )}
         {props.onDuplicate && <DropdownMenuItem onClick={props.onDuplicate}><Copy size={16} className="mr-2" />{t('transactions.duplicate')}</DropdownMenuItem>}
         {props.onTransfer && <DropdownMenuItem onClick={props.onTransfer}><ArrowLeftRight size={16} className="mr-2" />{t('transactions.transfer')}</DropdownMenuItem>}
       </DropdownMenuContent>

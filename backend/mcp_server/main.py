@@ -19,7 +19,17 @@ from mcp_server.registry import REGISTRY, call_tool, list_tools
 
 logger = logging.getLogger(__name__)
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="Securo MCP Server", openapi_url=None, docs_url=None)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 SERVER_INFO = {
@@ -41,23 +51,23 @@ def _ok(req_id: Any, result: Any) -> dict:
 
 
 @app.get("/health")
+@app.get("/mcp")
+@app.get("/")
+@app.get("")
 async def health():
-    return {"status": "ok", "tools": len(REGISTRY)}
+    return {
+        "status": "ok",
+        "name": SERVER_INFO["name"],
+        "version": SERVER_INFO["version"],
+        "protocolVersion": PROTOCOL_VERSION,
+        "tools": len(REGISTRY),
+    }
 
 
 @app.post("/mcp")
+@app.post("/")
+@app.post("")
 async def mcp(request: Request) -> JSONResponse:
-    # Auth first — never accept unauthenticated calls.
-    try:
-        ctx = verify_request(request)
-    except Exception as exc:  # HTTPException from verify_request
-        status_code = getattr(exc, "status_code", 401)
-        detail = getattr(exc, "detail", str(exc))
-        return JSONResponse(
-            status_code=status_code,
-            content={"jsonrpc": "2.0", "id": None, "error": {"code": -32001, "message": str(detail)}},
-        )
-
     try:
         body = await request.json()
     except Exception:
@@ -73,6 +83,7 @@ async def mcp(request: Request) -> JSONResponse:
     if body.get("jsonrpc") != "2.0" or not isinstance(method, str):
         return JSONResponse(status_code=400, content=_err(req_id, -32600, "invalid request"))
 
+    # Protocol initialization handshake — open to capability discovery
     if method == "initialize":
         return JSONResponse(
             content=_ok(req_id, {
@@ -80,6 +91,17 @@ async def mcp(request: Request) -> JSONResponse:
                 "capabilities": {"tools": {"listChanged": False}},
                 "serverInfo": SERVER_INFO,
             })
+        )
+
+    # Auth for data-access and mutation methods (tools/list, tools/call).
+    try:
+        ctx = verify_request(request)
+    except Exception as exc:  # HTTPException from verify_request
+        status_code = getattr(exc, "status_code", 401)
+        detail = getattr(exc, "detail", str(exc))
+        return JSONResponse(
+            status_code=status_code,
+            content={"jsonrpc": "2.0", "id": req_id, "error": {"code": -32001, "message": str(detail)}},
         )
 
     if method == "tools/list":

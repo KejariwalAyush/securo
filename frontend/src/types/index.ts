@@ -1760,3 +1760,54 @@ export interface ReconciliationHistoryEvent {
   transaction_id?: string | null
   transaction_description?: string | null
 }
+
+export interface LedgerScanItem {
+  id?: string
+  date: string
+  type: 'debit' | 'credit'
+  amount: number
+  description: string
+  category_id?: string | null
+  category_name?: string | null
+  account_id?: string | null
+  account_name?: string | null
+  payee_id?: string | null
+  payee_name?: string | null
+  notes?: string | null
+  raw_text?: string | null
+  confidence?: number
+  is_transfer?: boolean
+  transfer_target_account_id?: string | null
+  transfer_target_account_name?: string | null
+}
+
+export interface LedgerScanPreview {
+  page_date: string
+  opening_balance_bf: number | null
+  closing_balance_cf: number | null
+  left_total: number | null
+  right_total: number | null
+  is_balanced: boolean
+  balance_difference: number | null
+  transactions: LedgerScanItem[]
+  warnings: string[]
+}
+
+export interface LedgerBulkSaveItem {
+  date: string
+  type: 'debit' | 'credit'
+  amount: number
+  description: string
+  account_id: string
+  category_id?: string | null
+  payee_id?: string | null
+  payee_name?: string | null
+  notes?: string | null
+  is_transfer?: boolean
+  transfer_target_account_id?: string | null
+}
+
+export interface LedgerBulkSaveResponse {
+  created_count: number
+  created_ids: string[]
+}
