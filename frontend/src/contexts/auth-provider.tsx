@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { auth } from '@/lib/api'
+import { auth, WORKSPACE_STORAGE_KEY } from '@/lib/api'
 import type { User } from '@/types'
 
 import { AuthContext, type LoginResult } from '@/contexts/auth-context'
@@ -130,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await firebaseLogout().catch(() => {})
     }
     localStorage.removeItem('token')
+    localStorage.removeItem(WORKSPACE_STORAGE_KEY)
     setToken(null)
     setUser(null)
     queryClient.clear()

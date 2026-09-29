@@ -120,8 +120,13 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`
   }
   const workspaceId = localStorage.getItem(WORKSPACE_STORAGE_KEY)
-  if (workspaceId) {
-    config.headers['X-Workspace-Id'] = workspaceId
+  if (
+    workspaceId &&
+    workspaceId !== 'undefined' &&
+    workspaceId !== 'null' &&
+    workspaceId.trim() !== ''
+  ) {
+    config.headers['X-Workspace-Id'] = workspaceId.trim()
   }
   return config
 })
@@ -132,6 +137,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
+      localStorage.removeItem(WORKSPACE_STORAGE_KEY)
       const publicPaths = ['/login', '/register', '/setup', '/auth/oidc/callback']
       if (!publicPaths.some((p) => window.location.pathname.startsWith(p))) {
         window.location.href = '/login'

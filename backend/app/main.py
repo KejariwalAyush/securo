@@ -123,11 +123,27 @@ cors_origins = [orig.strip() for orig in settings.frontend_url.split(",") if ori
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_origin_regex=r"^https://.*\.web\.app$|^https://.*\.firebaseapp\.com$|^http://localhost(:\d+)?$",
+    allow_origin_regex=r"^https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled error processing request %s: %s", request.url.path, exc)
+    from starlette.responses import JSONResponse
+    origin = request.headers.get("origin")
+    headers = {}
+    if origin:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+        headers=headers,
+    )
 
 
 @app.middleware("http")

@@ -10,7 +10,12 @@ import { WorkspaceContext } from '@/contexts/workspace-context'
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user, token, isLoading: authLoading } = useAuth()
   const [list, setList] = useState<Workspace[]>([])
-  const [currentId, setCurrentId] = useState<string | null>(() => localStorage.getItem(WORKSPACE_STORAGE_KEY))
+  const [currentId, setCurrentId] = useState<string | null>(() => {
+    const stored = localStorage.getItem(WORKSPACE_STORAGE_KEY)
+    return stored && stored !== 'undefined' && stored !== 'null' && stored.trim() !== ''
+      ? stored.trim()
+      : null
+  })
   const [isLoading, setIsLoading] = useState(true)
   const queryClient = useQueryClient()
 
@@ -22,8 +27,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       // Reconcile the stored selection against what's actually accessible.
       // If the stored ID is stale (workspace archived, user removed, etc.)
       // fall back to the first one.
-      const storedId = localStorage.getItem(WORKSPACE_STORAGE_KEY)
-      const found = fetched.find((w) => w.id === storedId)
+      const rawStoredId = localStorage.getItem(WORKSPACE_STORAGE_KEY)
+      const storedId =
+        rawStoredId && rawStoredId !== 'undefined' && rawStoredId !== 'null' && rawStoredId.trim() !== ''
+          ? rawStoredId.trim()
+          : null
+      const found = storedId ? fetched.find((w) => w.id === storedId) : null
       if (found) {
         setCurrentId(found.id)
       } else if (fetched.length > 0) {
@@ -60,7 +69,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const switchWorkspace = useCallback(
     async (id: string) => {
-      if (id === currentId) return
+      if (!id || id === 'undefined' || id === 'null' || id === currentId) return
       // Persist FIRST so the axios interceptor sends the new
       // workspace_id on every refetch fired below.
       localStorage.setItem(WORKSPACE_STORAGE_KEY, id)

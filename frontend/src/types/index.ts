@@ -1779,12 +1779,16 @@ export interface LedgerScanItem {
   is_transfer?: boolean
   transfer_target_account_id?: string | null
   transfer_target_account_name?: string | null
+  side?: 'left' | 'right' | null
+  breakdown_text?: string | null
 }
 
 export interface LedgerScanPreview {
   page_date: string
   opening_balance_bf: number | null
+  opening_balance_bf_breakdown?: string | null
   closing_balance_cf: number | null
+  closing_balance_cf_breakdown?: string | null
   left_total: number | null
   right_total: number | null
   is_balanced: boolean

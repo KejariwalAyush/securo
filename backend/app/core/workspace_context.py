@@ -10,6 +10,7 @@ inferred role. Routes that mutate data check `ctx.role` to enforce
 viewer/editor/owner restrictions; routes that just read use any
 membership.
 """
+import logging
 import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -29,6 +30,8 @@ from app.services.workspace_service import (
     get_membership,
     is_workspace_manager,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -91,21 +94,25 @@ async def resolve_workspace(
 ) -> WorkspaceContext:
     """Resolve the workspace a request addresses, without side effects."""
     if x_workspace_id:
-        try:
-            ws_uuid = uuid.UUID(x_workspace_id)
-        except (ValueError, TypeError):
-            raise HTTPException(status_code=400, detail="Invalid X-Workspace-Id")
-        workspace = await session.get(Workspace, ws_uuid)
-        if workspace is None or workspace.is_archived:
-            raise HTTPException(status_code=404, detail="Workspace not found")
-        member = await get_membership(session, ws_uuid, user.id)
-        if member is None:
-            # Fall back to manager-of access.
-            if await is_workspace_manager(session, ws_uuid, user.id):
-                member = _virtual_manager_member(ws_uuid, user.id)
-            else:
-                raise HTTPException(status_code=404, detail="Workspace not found")
-        return WorkspaceContext(workspace=workspace, member=member, user=user)
+        clean_ws_id = x_workspace_id.strip()
+        if clean_ws_id and clean_ws_id.lower() not in ("undefined", "null", "none"):
+            try:
+                ws_uuid = uuid.UUID(clean_ws_id)
+                workspace = await session.get(Workspace, ws_uuid)
+                if workspace is not None and not workspace.is_archived:
+                    member = await get_membership(session, ws_uuid, user.id)
+                    if member is None and await is_workspace_manager(session, ws_uuid, user.id):
+                        member = _virtual_manager_member(ws_uuid, user.id)
+                    if member is not None:
+                        return WorkspaceContext(workspace=workspace, member=member, user=user)
+                    else:
+                        logger.warning("User %s is not a member of workspace %s, falling back to default", user.id, clean_ws_id)
+                else:
+                    logger.warning("Workspace %s not found or archived, falling back to default", clean_ws_id)
+            except (ValueError, TypeError):
+                logger.warning("Invalid X-Workspace-Id %r, falling back to default", x_workspace_id)
+            except Exception as exc:
+                logger.warning("Error resolving X-Workspace-Id %r: %s, falling back to default", x_workspace_id, exc)
 
     # Fallback: user's first non-archived workspace (member-of or managed).
     default = await get_default_workspace(session, user.id)

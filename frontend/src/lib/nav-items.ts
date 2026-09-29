@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   BarChart3,
+  BookOpen,
   Building2,
   Landmark,
   PiggyBank,
@@ -41,6 +42,7 @@ export const navItems: NavItem[] = [
   { type: 'link', key: 'import', path: '/import', icon: Upload, module: 'import' },
   { type: 'separator', labelKey: 'nav.groupAnalysis' },
   { type: 'link', key: 'reports', path: '/reports', icon: BarChart3, module: 'reports' },
+  { type: 'link', key: 'daybook', path: '/day-book', icon: BookOpen, module: 'reports' },
   { type: 'link', key: 'assets', path: '/assets', icon: Landmark, module: 'assets' },
   { type: 'separator', labelKey: 'nav.groupSetup' },
   { type: 'link', key: 'budgets', path: '/budgets', icon: PiggyBank, module: 'budgets' },

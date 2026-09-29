@@ -25,13 +25,18 @@ class LedgerScanItem(BaseModel):
     transfer_target_account_id: Optional[uuid.UUID] = None
     transfer_target_account_name: Optional[str] = None
 
+    side: Optional[Literal["left", "right"]] = None
+    breakdown_text: Optional[str] = None
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class LedgerScanPreview(BaseModel):
     page_date: date
     opening_balance_bf: Optional[Decimal] = None
+    opening_balance_bf_breakdown: Optional[str] = None
     closing_balance_cf: Optional[Decimal] = None
+    closing_balance_cf_breakdown: Optional[str] = None
     left_total: Optional[Decimal] = None
     right_total: Optional[Decimal] = None
     is_balanced: bool = True

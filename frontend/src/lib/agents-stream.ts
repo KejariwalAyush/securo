@@ -34,7 +34,9 @@ export async function streamChat(opts: SendMessageOptions): Promise<void> {
   // SSE uses raw fetch, so we have to set the workspace header here
   // — the axios interceptor that adds it for the rest of the app
   // doesn't run on this code path.
-  const workspaceId = localStorage.getItem(WORKSPACE_STORAGE_KEY) || ''
+  const rawWsId = localStorage.getItem(WORKSPACE_STORAGE_KEY) || ''
+  const workspaceId =
+    rawWsId && rawWsId !== 'undefined' && rawWsId !== 'null' ? rawWsId.trim() : ''
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Authorization: token ? `Bearer ${token}` : '',
